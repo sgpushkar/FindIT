@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+    <display-name>FindIT - Campus Lost and Found</display-name>
+
+    <!--
+        Location of the SQLite file. A relative path is resolved against
+        Tomcat's base folder (CATALINA_BASE), i.e. OUTSIDE the web app,
+        so the .db file can never be downloaded through the browser.
+        Override with -Dfindit.db.path=... or the FINDIT_DB_PATH env variable.
+    -->
+    <context-param>
+        <param-name>dbPath</param-name>
+        <param-value>data/lostfound.db</param-value>
+    </context-param>
+
+    <!-- Servlets, the filter and the listener are registered with
+         @WebServlet / @WebFilter / @WebListener annotations. -->
+
+    <session-config>
+        <session-timeout>60</session-timeout>
+        <cookie-config>
+            <http-only>true</http-only>
+        </cookie-config>
+        <tracking-mode>COOKIE</tracking-mode>
+    </session-config>
+
+    <welcome-file-list>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+
+    <!-- Friendly error pages: no stack traces are shown to users -->
+    <error-page>
+        <error-code>404</error-code>
+        <location>/WEB-INF/views/error.jsp</location>
+    </error-page>
+    <error-page>
+        <error-code>500</error-code>
+        <location>/WEB-INF/views/error.jsp</location>
+    </error-page>
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/WEB-INF/views/error.jsp</location>
+    </error-page>
+</web-app>
