@@ -1,0 +1,15 @@
+<%-- Item card. Expects a variable named "item" (com.findit.model.Item) in scope. --%>
+<a class="card" href="${ctx}/item?id=${item.id}">
+    <div class="card-top">
+        <span class="tag ${item.lost ? 'tag-lost' : 'tag-found'}"><c:out value="${item.type}" /></span>
+        <span class="status ${item.resolved ? 'status-resolved' : 'status-active'}"><c:out value="${item.status}" /></span>
+    </div>
+    <h3 class="card-title"><c:out value="${item.itemName}" /></h3>
+    <p class="card-desc"><c:out value="${item.shortDescription}" /></p>
+    <dl class="card-meta">
+        <div><dt>Category</dt><dd><c:out value="${item.category}" /></dd></div>
+        <div><dt>Location</dt><dd><c:out value="${item.location}" /></dd></div>
+        <div><dt>Date</dt><dd><c:out value="${item.displayDate}" /></dd></div>
+    </dl>
+    <span class="card-link">View details <span aria-hidden="true">&rarr;</span></span>
+</a>
