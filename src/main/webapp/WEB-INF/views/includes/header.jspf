@@ -1,0 +1,57 @@
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
+<c:set var="ctx" value="${pageContext.request.contextPath}" />
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><c:out value="${empty pageTitle ? 'FindIT' : pageTitle}" /> &middot; FindIT</title>
+    <meta name="description" content="FindIT - the campus lost and found.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="${ctx}/css/style.css">
+</head>
+<body>
+<header class="site-header">
+    <div class="container nav">
+        <a class="brand" href="${ctx}/home">
+            <span class="brand-name">FindIT</span>
+            <span class="brand-sub">Lost &amp; Found</span>
+        </a>
+
+        <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+        <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span></label>
+
+        <nav class="nav-links">
+            <a href="${ctx}/home" class="${nav == 'home' ? 'active' : ''}">Home</a>
+            <a href="${ctx}/search" class="${nav == 'search' ? 'active' : ''}">Search</a>
+            <a href="${ctx}/report?type=LOST" class="${nav == 'lost' ? 'active' : ''}">Report Lost</a>
+            <a href="${ctx}/report?type=FOUND" class="${nav == 'found' ? 'active' : ''}">Report Found</a>
+            <span class="nav-spacer"></span>
+            <c:choose>
+                <c:when test="${not empty sessionScope.user}">
+                    <c:if test="${sessionScope.user.admin}">
+                        <a href="${ctx}/admin" class="${nav == 'admin' ? 'active' : ''}">Admin</a>
+                    </c:if>
+                    <a href="${ctx}/dashboard" class="${nav == 'dashboard' ? 'active' : ''}">Dashboard</a>
+                    <a href="${ctx}/logout" class="nav-muted">Log out</a>
+                </c:when>
+                <c:otherwise>
+                    <a href="${ctx}/login" class="${nav == 'login' ? 'active' : ''}">Log in</a>
+                    <a href="${ctx}/register" class="btn btn-dark btn-sm">Sign up</a>
+                </c:otherwise>
+            </c:choose>
+        </nav>
+    </div>
+</header>
+
+<c:if test="${not empty sessionScope.flash}">
+    <div class="container">
+        <div class="flash" role="status"><c:out value="${sessionScope.flash}" /></div>
+    </div>
+    <c:remove var="flash" scope="session" />
+</c:if>
+
+<main class="page">
