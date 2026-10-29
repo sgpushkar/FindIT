@@ -1,0 +1,15 @@
+{
+  "name": "findit",
+  "version": "2.0.0",
+  "description": "FindIT - Campus Lost and Found (Spring Boot + React)",
+  "private": true,
+  "scripts": {
+    "start": "java -jar target/FindIT-2.0.0.jar",
+    "dev": "concurrently -k -n \"BACKEND,FRONTEND\" -c \"cyan,magenta\" \"mvn spring-boot:run\" \"npm --prefix frontend run dev\"",
+    "build": "npm --prefix frontend run build && mvn clean package -DskipTests"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
+

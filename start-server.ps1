@@ -1,49 +1,74 @@
 $ErrorActionPreference = "Stop"
 
-$tools = Join-Path $env:LOCALAPPDATA "FindIT\tools"
-$tomcatHome = Join-Path $tools "apache-tomcat-10.1.61"
-$mvnCmd = Join-Path $tools "apache-maven-3.10.0\bin\mvn.cmd"
-$javaHome = $env:JAVA_HOME
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host " FindIT - Spring Boot & React Server Startup " -ForegroundColor Cyan
+Write-Host "=============================================" -ForegroundColor Cyan
 
-if (-not $javaHome -or -not (Test-Path (Join-Path $javaHome "bin\java.exe"))) {
-    $javaHome = Get-ChildItem "C:\Program Files\Eclipse Adoptium" -Directory -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^jdk-(17|21|24)' } |
-        Sort-Object Name -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
+# 1. Check Java
+$javaCmd = Get-Command java -ErrorAction SilentlyContinue
+if (-not $javaCmd) {
+    if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+        $javaExe = Join-Path $env:JAVA_HOME "bin\java.exe"
+    } else {
+        throw "Java is not installed or not in PATH. Please install JDK 17+."
+    }
+} else {
+    $javaExe = "java"
 }
 
-foreach ($requiredPath in @($tomcatHome, $mvnCmd, (Join-Path $javaHome "bin\java.exe"))) {
-    if (-not (Test-Path $requiredPath)) {
-        throw "Required development tool not found: $requiredPath"
+# 2. Check if port 8080 is already active
+$portCheck = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+if ($portCheck) {
+    Write-Host "A server is already running on port 8080." -ForegroundColor Yellow
+    Write-Host "Open the app in your browser: http://localhost:8080/" -ForegroundColor Green
+    exit 0
+}
+
+# 3. Build React Frontend
+Write-Host "Building React frontend..." -ForegroundColor Gray
+$frontendDir = Join-Path $PSScriptRoot "frontend"
+if (Test-Path $frontendDir) {
+    Push-Location $frontendDir
+    try {
+        if (-not (Test-Path "node_modules")) {
+            Write-Host "Installing frontend dependencies..." -ForegroundColor Gray
+            npm install
+        }
+        npm run build
+        if ($LASTEXITCODE -ne 0) {
+            throw "Frontend build failed with exit code $LASTEXITCODE"
+        }
+    } finally {
+        Pop-Location
     }
 }
 
-$env:JAVA_HOME = $javaHome
-$env:CATALINA_HOME = $tomcatHome
-$env:CATALINA_BASE = $tomcatHome
-
-Write-Host "Building FindIT..."
-& $mvnCmd -f (Join-Path $PSScriptRoot "pom.xml") package -DskipTests
-if ($LASTEXITCODE -ne 0) {
-    throw "Maven build failed with exit code $LASTEXITCODE"
-}
-
-$sourceWar = Join-Path $PSScriptRoot "target\FindIT.war"
-$webapps = Join-Path $tomcatHome "webapps"
-$destWar = Join-Path $webapps "FindIT.war"
-
-Write-Host "Deploying to Tomcat webapps..."
-Copy-Item -Path $sourceWar -Destination $destWar -Force
-
-Write-Host "Checking if Tomcat is already running on port 8080..."
-$portCheck = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
-
-if ($portCheck) {
-    Write-Host "A server is already running on port 8080." -ForegroundColor Yellow
-    Write-Host "Open the app at: http://localhost:8080/FindIT/" -ForegroundColor Cyan
+# 4. Build Spring Boot Jar
+Write-Host "Building Spring Boot application..." -ForegroundColor Gray
+$mvnCmd = Get-Command mvn -ErrorAction SilentlyContinue
+if ($mvnCmd) {
+    & mvn clean package -DskipTests
 } else {
-    Write-Host "Starting Apache Tomcat 10..."
-    Write-Host "App will be available at: http://localhost:8080/FindIT/" -ForegroundColor Cyan
-    $catalinaBat = Join-Path $tomcatHome "bin\catalina.bat"
-    & $catalinaBat start
+    $toolsMvn = Join-Path $env:LOCALAPPDATA "FindIT\tools\apache-maven-3.10.0\bin\mvn.cmd"
+    if (Test-Path $toolsMvn) {
+        & $toolsMvn clean package -DskipTests
+    } else {
+        throw "Maven is not found in PATH or standard tools location."
+    }
 }
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Maven packaging failed with exit code $LASTEXITCODE"
+}
+
+$jarPath = Join-Path $PSScriptRoot "target\FindIT-2.0.0.jar"
+if (-not (Test-Path $jarPath)) {
+    throw "Target JAR file not found at: $jarPath"
+}
+
+# 5. Start Spring Boot Server
+Write-Host "Starting FindIT Spring Boot server..." -ForegroundColor Green
+Write-Host "Application will be available at: http://localhost:8080/" -ForegroundColor Cyan
+Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Yellow
+
+& $javaExe -jar $jarPath
