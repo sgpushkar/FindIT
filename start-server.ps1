@@ -4,6 +4,13 @@ Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " FindIT - Spring Boot & React Server Startup " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
+# 1. Check Java
+$javaCmd = Get-Command java -ErrorAction SilentlyContinue
+if (-not $javaCmd) {
+    if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+        $javaExe = Join-Path $env:JAVA_HOME "bin\java.exe"
+    } else {
+        throw "Java is not installed or not in PATH. Please install JDK 17+."
 # 1. Resolve JDK and JAVA_HOME
 $javaHome = $env:JAVA_HOME
 
@@ -24,6 +31,8 @@ if (-not $javaHome -or -not (Test-Path (Join-Path $javaHome "bin\javac.exe"))) {
             if ($dirs) { $foundList += $dirs }
         }
     }
+} else {
+    $javaExe = "java"
 
     if ($foundList) {
         $selected = $foundList |
@@ -61,11 +70,22 @@ if ($connections) {
     Start-Sleep -Seconds 1
 }
 
+# 3. Build React Frontend
+Write-Host "Checking React frontend build..." -ForegroundColor Gray
 # 3. Build React Frontend (if not already built)
 $frontendDir = Join-Path $PSScriptRoot "frontend"
 $staticIndex = Join-Path $PSScriptRoot "src\main\resources\static\index.html"
 
 if (Test-Path $frontendDir) {
+    Push-Location $frontendDir
+    try {
+        $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
+        if ($npmCmd) {
+            if (-not (Test-Path "node_modules")) {
+                Write-Host "Installing frontend dependencies..." -ForegroundColor Gray
+                npm install
+            }
+            if (-not (Test-Path $staticIndex)) {
     if (-not (Test-Path $staticIndex)) {
         Push-Location $frontendDir
         try {
@@ -81,6 +101,8 @@ if (Test-Path $frontendDir) {
         } finally {
             Pop-Location
         }
+    } finally {
+        Pop-Location
     }
 }
 
@@ -93,11 +115,14 @@ if (-not (Test-Path $jarPath)) {
     if ($mvnCmd) {
         & mvn clean package -DskipTests
     } else {
+        $toolsMvn = Join-Path $env:LOCALAPPDATA "FindIT\tools\apache-maven-3.10.0\bin\mvn.cmd"
+        if (Test-Path $toolsMvn) {
         $toolsMvn = Get-ChildItem (Join-Path $env:LOCALAPPDATA "FindIT\tools") -Recurse -Filter "mvn.cmd" -ErrorAction SilentlyContinue |
             Select-Object -First 1 -ExpandProperty FullName
         if ($toolsMvn -and (Test-Path $toolsMvn)) {
             & $toolsMvn clean package -DskipTests
         } else {
+            throw "Maven is not found in PATH or standard tools location."
             throw "Maven is not found. Please install Maven or add it to PATH."
         }
     }
