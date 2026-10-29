@@ -3,6 +3,7 @@ package com.findit.service;
 import com.findit.dao.ItemDAO;
 import com.findit.model.Item;
 import com.findit.model.Match;
+import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -14,13 +15,14 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Simple rule-based matching (no AI): compares a LOST report with FOUND
- * reports (or the other way round) using plain Java string processing.
+ * Rule-based matching: compares a LOST report with FOUND
+ * reports (or the other way round) using Java string processing.
  *
  *   Category match            = +40
  *   Location match            = +40 (partial word overlap = +20)
  *   Item-name keyword overlap = up to +20
  */
+@Service
 public class MatchService {
 
     public static final int THRESHOLD = 60;
@@ -28,7 +30,11 @@ public class MatchService {
     private static final Set<String> STOP_WORDS = new HashSet<>(Arrays.asList(
             "a", "an", "the", "of", "and", "my", "with", "near", "in", "on", "at", "for", "to"));
 
-    private final ItemDAO itemDAO = new ItemDAO();
+    private final ItemDAO itemDAO;
+
+    public MatchService(ItemDAO itemDAO) {
+        this.itemDAO = itemDAO;
+    }
 
     public List<Match> findMatches(Item item) throws SQLException {
         String opposite = item.isLost() ? "FOUND" : "LOST";
