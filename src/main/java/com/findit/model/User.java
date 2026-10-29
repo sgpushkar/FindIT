@@ -1,5 +1,7 @@
 package com.findit.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.io.Serializable;
 
 /** Represents one row of the users table. */
@@ -10,7 +12,10 @@ public class User implements Serializable {
     private int id;
     private String name;
     private String email;
-    private String password; // stored as a hash
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password; // stored as a hash, never exposed to JSON responses
+
     private String role;
     private String createdAt;
 
@@ -25,7 +30,7 @@ public class User implements Serializable {
     }
 
     public boolean isAdmin() {
-        return "ADMIN".equals(role);
+        return "ADMIN".equalsIgnoreCase(role);
     }
 
     public String getFirstName() {

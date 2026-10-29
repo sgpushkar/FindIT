@@ -1,8 +1,9 @@
 package com.findit.dao;
 
 import com.findit.model.Item;
-import com.findit.util.Database;
+import org.springframework.stereotype.Repository;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,16 +16,27 @@ import java.util.List;
  * All SQL for the items table (Create, Read, Update, Delete).
  * User input is only ever passed through '?' placeholders.
  */
+@Repository
 public class ItemDAO {
 
     private static final String SELECT =
             "SELECT i.*, u.name AS reporter_name FROM items i JOIN users u ON u.id = i.user_id ";
 
+    private final DataSource dataSource;
+
+    public ItemDAO(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    private Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
+
     // ---------- CREATE ----------
     public int create(Item item) throws SQLException {
         String sql = "INSERT INTO items (user_id, type, item_name, category, description, location, item_date, status) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, 'ACTIVE')";
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, item.getUserId());
             ps.setString(2, item.getType());
@@ -45,7 +57,7 @@ public class ItemDAO {
 
     // ---------- READ ----------
     public Item findById(int id) throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(SELECT + "WHERE i.id = ?")) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -55,7 +67,7 @@ public class ItemDAO {
     }
 
     public List<Item> findRecent(int limit) throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(SELECT + "ORDER BY i.created_at DESC, i.id DESC LIMIT ?")) {
             ps.setInt(1, limit);
             return list(ps);
@@ -63,14 +75,14 @@ public class ItemDAO {
     }
 
     public List<Item> findAll() throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(SELECT + "ORDER BY i.created_at DESC, i.id DESC")) {
             return list(ps);
         }
     }
 
     public List<Item> findActiveByType(String type) throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement(SELECT + "WHERE i.type = ? AND i.status = 'ACTIVE'")) {
             ps.setString(1, type);
             return list(ps);
@@ -90,7 +102,7 @@ public class ItemDAO {
         }
         sql.append("ORDER BY i.created_at DESC, i.id DESC");
 
-        try (Connection c = Database.getConnection(); PreparedStatement ps = c.prepareStatement(sql.toString())) {
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql.toString())) {
             ps.setInt(1, userId);
             if (value != null) {
                 ps.setString(2, value);
@@ -134,7 +146,7 @@ public class ItemDAO {
         }
         sql.append("ORDER BY i.created_at DESC, i.id DESC LIMIT 100");
 
-        try (Connection c = Database.getConnection(); PreparedStatement ps = c.prepareStatement(sql.toString())) {
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql.toString())) {
             for (int k = 0; k < params.size(); k++) {
                 ps.setString(k + 1, params.get(k));
             }
@@ -152,7 +164,7 @@ public class ItemDAO {
 
     // ---------- UPDATE ----------
     public boolean updateStatus(int id, String status) throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement("UPDATE items SET status = ? WHERE id = ?")) {
             ps.setString(1, status);
             ps.setInt(2, id);
@@ -162,7 +174,7 @@ public class ItemDAO {
 
     // ---------- DELETE ----------
     public boolean delete(int id) throws SQLException {
-        try (Connection c = Database.getConnection();
+        try (Connection c = getConnection();
              PreparedStatement ps = c.prepareStatement("DELETE FROM items WHERE id = ?")) {
             ps.setInt(1, id);
             return ps.executeUpdate() == 1;
@@ -171,7 +183,7 @@ public class ItemDAO {
 
     // ---------- helpers ----------
     private int count(String sql, String value) throws SQLException {
-        try (Connection c = Database.getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = getConnection(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, value);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? rs.getInt(1) : 0;
