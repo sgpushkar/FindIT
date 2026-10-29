@@ -16,59 +16,70 @@ if (-not $javaCmd) {
     $javaExe = "java"
 }
 
-# 2. Check if port 8080 is already active
-$portCheck = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
-if ($portCheck) {
-    Write-Host "A server is already running on port 8080." -ForegroundColor Yellow
-    Write-Host "Open the app in your browser: http://localhost:8080/" -ForegroundColor Green
-    exit 0
+# 2. Check and free port 8080 if an old server (like external Tomcat) is running
+$connections = Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue
+if ($connections) {
+    Write-Host "Port 8080 is currently occupied (e.g. old Tomcat server)." -ForegroundColor Yellow
+    Write-Host "Stopping existing process on port 8080 to launch FindIT..." -ForegroundColor Gray
+    foreach ($conn in $connections) {
+        $procId = $conn.OwningProcess
+        if ($procId -gt 0) {
+            Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+        }
+    }
+    Start-Sleep -Seconds 1
 }
 
 # 3. Build React Frontend
-Write-Host "Building React frontend..." -ForegroundColor Gray
+Write-Host "Checking React frontend build..." -ForegroundColor Gray
 $frontendDir = Join-Path $PSScriptRoot "frontend"
+$staticIndex = Join-Path $PSScriptRoot "src\main\resources\static\index.html"
+
 if (Test-Path $frontendDir) {
     Push-Location $frontendDir
     try {
-        if (-not (Test-Path "node_modules")) {
-            Write-Host "Installing frontend dependencies..." -ForegroundColor Gray
-            npm install
-        }
-        npm run build
-        if ($LASTEXITCODE -ne 0) {
-            throw "Frontend build failed with exit code $LASTEXITCODE"
+        $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
+        if ($npmCmd) {
+            if (-not (Test-Path "node_modules")) {
+                Write-Host "Installing frontend dependencies..." -ForegroundColor Gray
+                npm install
+            }
+            if (-not (Test-Path $staticIndex)) {
+                Write-Host "Building React frontend..." -ForegroundColor Gray
+                npm run build
+            }
         }
     } finally {
         Pop-Location
     }
 }
 
-# 4. Build Spring Boot Jar
-Write-Host "Building Spring Boot application..." -ForegroundColor Gray
-$mvnCmd = Get-Command mvn -ErrorAction SilentlyContinue
-if ($mvnCmd) {
-    & mvn clean package -DskipTests
-} else {
-    $toolsMvn = Join-Path $env:LOCALAPPDATA "FindIT\tools\apache-maven-3.10.0\bin\mvn.cmd"
-    if (Test-Path $toolsMvn) {
-        & $toolsMvn clean package -DskipTests
+# 4. Check or Build Spring Boot Jar
+$jarPath = Join-Path $PSScriptRoot "target\FindIT-2.0.0.jar"
+if (-not (Test-Path $jarPath)) {
+    Write-Host "Building Spring Boot application JAR..." -ForegroundColor Gray
+    $mvnCmd = Get-Command mvn -ErrorAction SilentlyContinue
+    if ($mvnCmd) {
+        & mvn clean package -DskipTests
     } else {
-        throw "Maven is not found in PATH or standard tools location."
+        $toolsMvn = Join-Path $env:LOCALAPPDATA "FindIT\tools\apache-maven-3.10.0\bin\mvn.cmd"
+        if (Test-Path $toolsMvn) {
+            & $toolsMvn clean package -DskipTests
+        } else {
+            throw "Maven is not found in PATH or standard tools location."
+        }
     }
 }
 
-if ($LASTEXITCODE -ne 0) {
-    throw "Maven packaging failed with exit code $LASTEXITCODE"
-}
-
-$jarPath = Join-Path $PSScriptRoot "target\FindIT-2.0.0.jar"
 if (-not (Test-Path $jarPath)) {
     throw "Target JAR file not found at: $jarPath"
 }
 
 # 5. Start Spring Boot Server
 Write-Host "Starting FindIT Spring Boot server..." -ForegroundColor Green
-Write-Host "Application will be available at: http://localhost:8080/" -ForegroundColor Cyan
-Write-Host "Press Ctrl+C to stop the server." -ForegroundColor Yellow
+Write-Host "=============================================" -ForegroundColor Green
+Write-Host " Application URL: http://localhost:8080/    " -ForegroundColor Cyan
+Write-Host " Press Ctrl+C to stop the server.            " -ForegroundColor Yellow
+Write-Host "=============================================" -ForegroundColor Green
 
 & $javaExe -jar $jarPath
