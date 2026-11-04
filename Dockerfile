@@ -22,3 +22,4 @@ RUN mkdir -p /app/data
 ENV PORT=8080
 EXPOSE 8080
 CMD ["java", "-jar", "app.jar"]
+
