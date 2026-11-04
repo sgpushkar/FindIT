@@ -21,5 +21,5 @@ COPY --from=backend-builder /app/target/FindIT-2.0.0.jar app.jar
 RUN mkdir -p /app/data
 ENV PORT=8080
 EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+CMD ["sh", "-c", "java -Dserver.port=${PORT:-8080} -jar app.jar"]
 
